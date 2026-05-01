@@ -7,6 +7,7 @@ from app.core.queue import extract_job, process_job, transcribe_job
 
 
 async def test_transcribe_job_returns_transcript(tmp_path):
+    """Job result contains the transcript string."""
     fake_file = tmp_path / "audio.wav"
     fake_file.write_bytes(b"fake audio")
 
@@ -20,6 +21,7 @@ async def test_transcribe_job_returns_transcript(tmp_path):
 
 
 async def test_transcribe_job_deletes_file_on_success(tmp_path):
+    """Temp file is removed after a successful transcription."""
     fake_file = tmp_path / "audio.wav"
     fake_file.write_bytes(b"fake audio")
 
@@ -33,6 +35,7 @@ async def test_transcribe_job_deletes_file_on_success(tmp_path):
 
 
 async def test_transcribe_job_deletes_file_on_error(tmp_path):
+    """Temp file is removed even when transcription raises."""
     fake_file = tmp_path / "audio.wav"
     fake_file.write_bytes(b"fake audio")
 
@@ -47,6 +50,7 @@ async def test_transcribe_job_deletes_file_on_error(tmp_path):
 
 
 async def test_extract_job_returns_extraction():
+    """Job result contains the extraction dict and passes args through."""
     mock_svc = AsyncMock()
     mock_svc.extract = AsyncMock(return_value={"summary": "good call"})
 
@@ -58,6 +62,7 @@ async def test_extract_job_returns_extraction():
 
 
 async def test_process_job_returns_both(tmp_path):
+    """Job result contains both transcript and extraction."""
     fake_file = tmp_path / "audio.wav"
     fake_file.write_bytes(b"fake audio")
 
@@ -72,10 +77,14 @@ async def test_process_job_returns_both(tmp_path):
     ):
         result = await process_job({}, str(fake_file), "summarise", "en")
 
-    assert result == {"transcript": "the transcript", "extraction": {"summary": "brief"}}
+    assert result == {
+        "transcript": "the transcript",
+        "extraction": {"summary": "brief"},
+    }
 
 
 async def test_process_job_deletes_file_on_error(tmp_path):
+    """Temp file is removed even when the job raises mid-way."""
     fake_file = tmp_path / "audio.wav"
     fake_file.write_bytes(b"fake audio")
 

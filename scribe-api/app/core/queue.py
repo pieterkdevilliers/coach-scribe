@@ -2,6 +2,7 @@
 import logging
 from pathlib import Path
 
+import logfire
 from arq.connections import ArqRedis, RedisSettings, create_pool
 from fastapi import Request
 
@@ -36,23 +37,27 @@ async def transcribe_job(
     from app.services.transcription import transcription_service
 
     path = Path(file_path)
-    try:
-        logger.info("transcribe_job started: %s", path.name)
-        transcript = await transcription_service.transcribe(path, language, timestamps)
-        logger.info("transcribe_job complete: %s", path.name)
-        return {"transcript": transcript}
-    finally:
-        path.unlink(missing_ok=True)
+    with logfire.span("transcribe_job", file=path.name, language=language):
+        try:
+            logger.info("transcribe_job started: %s", path.name)
+            transcript = await transcription_service.transcribe(
+                path, language, timestamps
+            )
+            logger.info("transcribe_job complete: %s", path.name)
+            return {"transcript": transcript}
+        finally:
+            path.unlink(missing_ok=True)
 
 
 async def extract_job(_ctx: dict, transcript: str, prompt: str) -> dict:
     """ARQ job: run LLM extraction on an existing transcript."""
     from app.services.extraction import extraction_service
 
-    logger.info("extract_job started")
-    extraction = await extraction_service.extract(transcript, prompt)
-    logger.info("extract_job complete")
-    return {"extraction": extraction}
+    with logfire.span("extract_job"):
+        logger.info("extract_job started")
+        extraction = await extraction_service.extract(transcript, prompt)
+        logger.info("extract_job complete")
+        return {"extraction": extraction}
 
 
 async def process_job(_ctx: dict, file_path: str, prompt: str, language: str) -> dict:
@@ -61,12 +66,13 @@ async def process_job(_ctx: dict, file_path: str, prompt: str, language: str) ->
     from app.services.transcription import transcription_service
 
     path = Path(file_path)
-    try:
-        logger.info("process_job transcribing: %s", path.name)
-        transcript = await transcription_service.transcribe(path, language)
-        logger.info("process_job extracting: %s", path.name)
-        extraction = await extraction_service.extract(transcript, prompt)
-        logger.info("process_job complete: %s", path.name)
-        return {"transcript": transcript, "extraction": extraction}
-    finally:
-        path.unlink(missing_ok=True)
+    with logfire.span("process_job", file=path.name, language=language):
+        try:
+            logger.info("process_job transcribing: %s", path.name)
+            transcript = await transcription_service.transcribe(path, language)
+            logger.info("process_job extracting: %s", path.name)
+            extraction = await extraction_service.extract(transcript, prompt)
+            logger.info("process_job complete: %s", path.name)
+            return {"transcript": transcript, "extraction": extraction}
+        finally:
+            path.unlink(missing_ok=True)

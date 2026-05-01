@@ -2,13 +2,18 @@
 import logging
 from contextlib import asynccontextmanager
 
+import logfire
 from fastapi import FastAPI
 
 from app.api.routes import jobs, process
+from app.core.config import settings
 from app.core.queue import get_arq_pool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+if settings.logfire_token:
+    logfire.configure(service_name="scribe-api")
 
 
 @asynccontextmanager
@@ -27,6 +32,11 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+if settings.logfire_token:
+    logfire.instrument_fastapi(app)
+    logfire.instrument_httpx()
+    logfire.instrument_pydantic_ai()
 
 app.include_router(process.router)
 app.include_router(jobs.router)

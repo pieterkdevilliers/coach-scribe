@@ -1,8 +1,12 @@
 """ARQ worker entrypoint — run with: uv run arq worker.WorkerSettings."""
+import logfire
 from arq.connections import RedisSettings
 
 from app.core.config import settings
 from app.core.queue import extract_job, process_job, transcribe_job
+
+if settings.logfire_token:
+    logfire.configure(service_name="scribe-worker")
 
 
 class WorkerSettings:

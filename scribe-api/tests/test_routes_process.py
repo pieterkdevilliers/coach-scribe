@@ -1,5 +1,4 @@
 """Tests for POST /transcribe, /extract, and /process endpoints."""
-import pytest
 
 
 async def test_transcribe_returns_job_id(api_client, mock_pool):
