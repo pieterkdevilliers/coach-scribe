@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     whisper_model: str = "medium"
     temp_dir: str = "/tmp/scribe"
     max_file_size_mb: int = 500
+    llm_timeout: int = 600
     logfire_token: str | None = None
 
 

@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
     "You are a data extraction assistant. "
-    "Respond with valid JSON only — no explanation, no markdown fences."
+    "You MUST respond with a valid JSON object only. "
+    "Your entire response must start with '{' and end with '}'. "
+    "No markdown, no explanation, no code fences — raw JSON only."
 )
 
 
@@ -52,10 +54,18 @@ class ExtractionService:
         """Run LLM extraction against the transcript. Returns parsed JSON dict."""
         await self._ensure_agent()
 
-        user_message = f"TRANSCRIPT:\n{transcript}\n\nINSTRUCTION:\n{prompt}"
+        user_message = (
+            f"TRANSCRIPT:\n{transcript}\n\n"
+            f"INSTRUCTION:\n{prompt}\n\n"
+            "IMPORTANT: Your response must be a JSON object only. "
+            "Start with '{' and end with '}'."
+        )
         logger.info("Running extraction with model %s", settings.llm_model)
 
-        result = await self._agent.run(user_message)
+        result = await self._agent.run(
+            user_message,
+            model_settings={"timeout": settings.llm_timeout},
+        )
         raw = result.output.strip()
 
         if raw.startswith("```"):
@@ -63,11 +73,13 @@ class ExtractionService:
             raw = "\n".join(lines[1:]).rsplit("```", 1)[0].strip()
 
         repaired = repair_json(raw, return_objects=True)
-        if not isinstance(repaired, dict):
-            raise ValueError(
-                f"Model output is not a JSON object. Raw: {raw!r}"
-            )
-        return repaired
+        if isinstance(repaired, dict):
+            return repaired
+
+        # Model returned plain text despite instructions — wrap it so the job
+        # completes rather than fails, and the caller can see the raw output.
+        logger.warning("Model returned non-JSON output; wrapping as plain text.")
+        return {"result": raw}
 
     @property
     def is_ready(self) -> bool:
