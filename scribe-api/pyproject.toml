@@ -1,0 +1,37 @@
+[project]
+name = "scribe-api"
+version = "0.1.0"
+description = "Local audio/video transcription and extraction service"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "pydantic-ai>=0.0.14",
+    "faster-whisper>=1.1.0",
+    "arq>=0.26.1",
+    "httpx>=0.28.0",
+    "python-multipart>=0.0.18",
+    "openai>=1.57.0",
+    "aiofiles>=25.1.0",
+    "json-repair>=0.59.5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+    "ruff>=0.8.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

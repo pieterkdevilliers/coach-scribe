@@ -164,9 +164,10 @@ class ExtractRequest(BaseModel):
 ---
 
 ## Preferred Libraries & Tools
-- **Core:** FastAPI, Pydantic v2, pydantic-settings, pydantic-ai, faster-whisper, ARQ, httpx
-- **Dev tools:** ruff (linter/formatter), pytest — install as dev dependencies via `uv add --dev`
+- **Core:** FastAPI, Pydantic v2, pydantic-settings, pydantic-ai, faster-whisper, ARQ, httpx, aiofiles, openai
+- **Dev tools:** ruff (linter/formatter), pytest, pytest-asyncio — install as dev dependencies via `uv add --dev`
 - **Do not** suggest or use pip install, python -m venv, or legacy requirements files
+- `openai` is a direct dependency (not a dev tool) — pydantic-ai uses it to talk to Ollama's OpenAI-compatible `/v1` endpoint
 
 ---
 
@@ -183,10 +184,10 @@ MAX_FILE_SIZE_MB=500
 ---
 
 ## Docker Compose Services
-- `scribe-api` — FastAPI app (port 8000)
-- `worker` — ARQ worker (same image, different entrypoint)
-- `redis` — ARQ broker and result store
-- `ollama` — Local LLM runtime (pull model on first start)
+- `scribe-api` — FastAPI app (host port **8100**, container port 8000)
+- `worker` — ARQ worker (same image, entrypoint: `uv run arq worker.WorkerSettings`)
+- `redis` — ARQ broker and result store (host port 6380)
+- `ollama` — Local LLM runtime (host port 11434, pulls `llama3.1:8b` on first start)
 
 ---
 
@@ -197,4 +198,30 @@ MAX_FILE_SIZE_MB=500
 - Temp files must always be cleaned up in a `finally` block — never leak files
 - Wrap all Ollama and Whisper calls in try/except and surface errors clearly in job result
 - Always include type hints on all functions and methods
+- Always include a docstring on every public function, method, and class (one short line)
 - Always include tests (pytest) for new features — run via `uv run pytest`
+
+## Implementation Patterns
+
+**Blocking CPU calls** — faster-whisper is synchronous. Always run it via `asyncio.to_thread()`
+inside an `async def` method; never call it directly on the event loop.
+
+**Service singletons** — `transcription_service` and `extraction_service` are module-level
+singletons. Both load their underlying model lazily on first use, protected by a `threading.Lock`
+to prevent double-initialisation when `max_jobs > 1`.
+
+**ARQ pool lifecycle** — A single `ArqRedis` pool is created in the FastAPI `lifespan` context
+manager and stored on `app.state.arq_pool`. Routes access it via the `get_pool(request: Request)`
+FastAPI dependency defined in `app/core/queue.py`.
+
+**ARQ job functions** — All job task functions (`transcribe_job`, `extract_job`, `process_job`)
+live in `app/core/queue.py`. `worker.py` contains only the `WorkerSettings` class that registers
+them with the ARQ worker. Worker is configured with `max_jobs=2` and `job_timeout=3600` (1 hour).
+
+**Ollama via OpenAI SDK** — pydantic-ai's `OpenAIModel` is pointed at `{OLLAMA_BASE_URL}/v1`
+with `api_key="ollama"`. This uses Ollama's OpenAI-compatible endpoint; no Ollama-specific SDK is
+needed.
+
+**Job result polling** — `GET /job/{id}` calls `job.result_info()` first (returns `None` if not
+done, or a `JobResult` with `success`, `result`, `enqueue_time`, and `finish_time` if complete).
+Falls back to `job.status()` for pending/in-progress state.
