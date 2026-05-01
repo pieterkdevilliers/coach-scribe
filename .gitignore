@@ -1,0 +1,51 @@
+# Python / uv
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+.python-version
+
+# uv
+uv.lock
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ruff
+.ruff_cache/
+
+# Environment variables
+.env
+.venv
+.env.*
+!.env.example
+
+# Node / Nuxt / Vue
+node_modules/
+.nuxt/
+.output/
+dist/
+.cache/
+
+# npm / pnpm / yarn
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo

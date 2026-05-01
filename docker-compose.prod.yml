@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: production
+    volumes:
+      - backend_db:/app/data
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////app/data/daily_tasks.db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    ports:
+      - "3000:3000"
+    environment:
+      NUXT_PUBLIC_API_BASE: http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend_db:
