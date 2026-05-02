@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     temp_dir: str = "/tmp/scribe"
     max_file_size_mb: int = 500
     llm_timeout: int = 600
+    job_timeout: int = 7200
     logfire_token: str | None = None
 
 

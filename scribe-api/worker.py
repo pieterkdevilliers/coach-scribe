@@ -27,4 +27,4 @@ class WorkerSettings:
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     max_jobs = 2
-    job_timeout = 3600  # 60 min — long CPU transcription jobs
+    job_timeout = settings.job_timeout
