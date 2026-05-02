@@ -3,7 +3,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.core.queue import extract_job, process_job, transcribe_job
+from app.core.queue import (
+    extract_job,
+    process_job,
+    process_url_job,
+    transcribe_job,
+    transcribe_url_job,
+)
 
 
 async def test_transcribe_job_returns_transcript(tmp_path):
@@ -96,3 +102,67 @@ async def test_process_job_deletes_file_on_error(tmp_path):
             await process_job({}, str(fake_file), "summarise", "en")
 
     assert not fake_file.exists()
+
+
+async def test_transcribe_url_job_downloads_and_transcribes(tmp_path):
+    """URL job downloads the file, transcribes it, and cleans up."""
+    fake_file = tmp_path / "call.mp4"
+    fake_file.write_bytes(b"fake")
+
+    mock_trans = AsyncMock()
+    mock_trans.transcribe = AsyncMock(return_value="hello from url")
+
+    with (
+        patch("app.core.temp_files.download_from_url", AsyncMock(return_value=fake_file)),  # noqa: E501
+        patch("app.services.transcription.transcription_service", mock_trans),
+    ):
+        result = await transcribe_url_job(
+            {}, "https://s3.example.com/call.mp4", "en", False
+        )
+
+    assert result == {"transcript": "hello from url"}
+
+
+async def test_transcribe_url_job_deletes_file_on_error(tmp_path):
+    """Temp file is removed even when transcription raises."""
+    fake_file = tmp_path / "call.mp4"
+    fake_file.write_bytes(b"fake")
+
+    mock_trans = AsyncMock()
+    mock_trans.transcribe = AsyncMock(side_effect=RuntimeError("failed"))
+
+    with (
+        patch("app.core.temp_files.download_from_url", AsyncMock(return_value=fake_file)),  # noqa: E501
+        patch("app.services.transcription.transcription_service", mock_trans),
+    ):
+        with pytest.raises(RuntimeError):
+            await transcribe_url_job(
+                {}, "https://s3.example.com/call.mp4", "en", False
+            )
+
+    assert not fake_file.exists()
+
+
+async def test_process_url_job_returns_both(tmp_path):
+    """URL process job returns transcript and extraction."""
+    fake_file = tmp_path / "call.mp4"
+    fake_file.write_bytes(b"fake")
+
+    mock_trans = AsyncMock()
+    mock_trans.transcribe = AsyncMock(return_value="the transcript")
+    mock_extract = AsyncMock()
+    mock_extract.extract = AsyncMock(return_value={"summary": "brief"})
+
+    with (
+        patch("app.core.temp_files.download_from_url", AsyncMock(return_value=fake_file)),  # noqa: E501
+        patch("app.services.transcription.transcription_service", mock_trans),
+        patch("app.services.extraction.extraction_service", mock_extract),
+    ):
+        result = await process_url_job(
+            {}, "https://s3.example.com/call.mp4", "summarise", "en"
+        )
+
+    assert result == {
+        "transcript": "the transcript",
+        "extraction": {"summary": "brief"},
+    }

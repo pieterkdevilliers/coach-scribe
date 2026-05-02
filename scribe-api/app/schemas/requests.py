@@ -14,6 +14,22 @@ class ProcessRequest(BaseModel):
     prompt: str
 
 
+class TranscribeUrlRequest(BaseModel):
+    """Request body for POST /transcribe-url."""
+
+    s3_url: str
+    language: str = "en"
+    timestamps: bool = False
+
+
+class ProcessUrlRequest(BaseModel):
+    """Request body for POST /process-url."""
+
+    s3_url: str
+    prompt: str
+    language: str = "en"
+
+
 class HealthResponse(BaseModel):
     """Response body for GET /health."""
 

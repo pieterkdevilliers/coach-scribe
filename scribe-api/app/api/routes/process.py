@@ -8,7 +8,11 @@ from app.core.config import settings
 from app.core.queue import get_pool
 from app.core.temp_files import save_upload
 from app.schemas.jobs import JobEnqueued
-from app.schemas.requests import ExtractRequest
+from app.schemas.requests import (
+    ExtractRequest,
+    ProcessUrlRequest,
+    TranscribeUrlRequest,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -49,6 +53,30 @@ async def extract(
     """Accept a transcript and prompt and enqueue an LLM extraction job."""
     job = await pool.enqueue_job("extract_job", body.transcript, body.prompt)
     logger.info("Enqueued extract_job %s", job.job_id)
+    return JobEnqueued(job_id=job.job_id)
+
+
+@router.post("/transcribe-url", response_model=JobEnqueued)
+async def transcribe_url(
+    body: TranscribeUrlRequest, pool: ArqRedis = Depends(get_pool)
+) -> JobEnqueued:
+    """Accept a presigned URL and enqueue a transcription job."""
+    job = await pool.enqueue_job(
+        "transcribe_url_job", body.s3_url, body.language, body.timestamps
+    )
+    logger.info("Enqueued transcribe_url_job %s", job.job_id)
+    return JobEnqueued(job_id=job.job_id)
+
+
+@router.post("/process-url", response_model=JobEnqueued)
+async def process_url(
+    body: ProcessUrlRequest, pool: ArqRedis = Depends(get_pool)
+) -> JobEnqueued:
+    """Accept a presigned URL and enqueue a combined transcription + extraction job."""
+    job = await pool.enqueue_job(
+        "process_url_job", body.s3_url, body.prompt, body.language
+    )
+    logger.info("Enqueued process_url_job %s", job.job_id)
     return JobEnqueued(job_id=job.job_id)
 
 

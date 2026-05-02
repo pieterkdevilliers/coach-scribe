@@ -1,10 +1,10 @@
 """Tests for temp file save and cleanup utilities."""
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.core.config import settings
-from app.core.temp_files import save_upload, temp_upload
+from app.core.temp_files import download_from_url, save_upload, temp_upload
 
 
 @pytest.fixture
@@ -48,6 +48,58 @@ async def test_temp_upload_deletes_file_on_exit(mock_upload, monkeypatch, tmp_pa
     async with temp_upload(mock_upload) as path:
         assert path.exists()
     assert not path.exists()
+
+
+async def test_download_from_url_creates_file(monkeypatch, tmp_path):
+    """File content from the URL is written to temp directory."""
+    monkeypatch.setattr(settings, "temp_dir", str(tmp_path))
+
+    async def fake_aiter_bytes(_chunk_size):
+        yield b"fake audio content"
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.headers = {"content-type": "audio/wav"}
+    mock_response.aiter_bytes = fake_aiter_bytes
+    mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_response.__aexit__ = AsyncMock(return_value=False)
+
+    mock_client = MagicMock()
+    mock_client.stream = MagicMock(return_value=mock_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("app.core.temp_files.httpx.AsyncClient", return_value=mock_client):
+        path = await download_from_url("https://bucket.s3.amazonaws.com/call.mp4")
+
+    assert path.exists()
+    assert path.read_bytes() == b"fake audio content"
+
+
+async def test_download_from_url_preserves_extension(monkeypatch, tmp_path):
+    """File extension is inferred from the URL path before the query string."""
+    monkeypatch.setattr(settings, "temp_dir", str(tmp_path))
+
+    async def fake_aiter_bytes(_chunk_size):
+        yield b"data"
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.headers = {}
+    mock_response.aiter_bytes = fake_aiter_bytes
+    mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_response.__aexit__ = AsyncMock(return_value=False)
+
+    mock_client = MagicMock()
+    mock_client.stream = MagicMock(return_value=mock_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    presigned = "https://bucket.s3.amazonaws.com/call.mp4?X-Amz-Signature=abc"
+    with patch("app.core.temp_files.httpx.AsyncClient", return_value=mock_client):
+        path = await download_from_url(presigned)
+
+    assert path.suffix == ".mp4"
 
 
 async def test_temp_upload_deletes_file_on_exception(

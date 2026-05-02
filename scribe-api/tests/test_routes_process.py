@@ -87,3 +87,65 @@ async def test_process_missing_prompt_returns_422(api_client):
         files={"file": ("audio.wav", b"fake audio data", "audio/wav")},
     )
     assert resp.status_code == 422
+
+
+async def test_transcribe_url_returns_job_id(api_client, mock_pool):
+    resp = await api_client.post(
+        "/transcribe-url",
+        json={"s3_url": "https://bucket.s3.amazonaws.com/call.mp4"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["job_id"] == "test-job-id-123"
+
+
+async def test_transcribe_url_enqueues_correct_job(api_client, mock_pool):
+    await api_client.post(
+        "/transcribe-url",
+        json={"s3_url": "https://bucket.s3.amazonaws.com/call.mp4", "language": "fr"},
+    )
+    mock_pool.enqueue_job.assert_called_once()
+    call_args = mock_pool.enqueue_job.call_args[0]
+    assert call_args[0] == "transcribe_url_job"
+    assert call_args[1] == "https://bucket.s3.amazonaws.com/call.mp4"
+    assert call_args[2] == "fr"
+
+
+async def test_transcribe_url_missing_url_returns_422(api_client):
+    resp = await api_client.post("/transcribe-url", json={"language": "en"})
+    assert resp.status_code == 422
+
+
+async def test_process_url_returns_job_id(api_client, mock_pool):
+    resp = await api_client.post(
+        "/process-url",
+        json={
+            "s3_url": "https://bucket.s3.amazonaws.com/call.mp4",
+            "prompt": "summarise",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["job_id"] == "test-job-id-123"
+
+
+async def test_process_url_enqueues_correct_job(api_client, mock_pool):
+    await api_client.post(
+        "/process-url",
+        json={
+            "s3_url": "https://bucket.s3.amazonaws.com/call.mp4",
+            "prompt": "my prompt",
+            "language": "de",
+        },
+    )
+    mock_pool.enqueue_job.assert_called_once()
+    call_args = mock_pool.enqueue_job.call_args[0]
+    assert call_args[0] == "process_url_job"
+    assert call_args[2] == "my prompt"
+    assert call_args[3] == "de"
+
+
+async def test_process_url_missing_prompt_returns_422(api_client):
+    resp = await api_client.post(
+        "/process-url",
+        json={"s3_url": "https://bucket.s3.amazonaws.com/call.mp4"},
+    )
+    assert resp.status_code == 422
