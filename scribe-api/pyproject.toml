@@ -16,6 +16,8 @@ dependencies = [
     "aiofiles>=25.1.0",
     "json-repair>=0.59.5",
     "logfire[fastapi,httpx,redis]>=4.32.1",
+    "slowapi>=0.1.9",
+    "pyannote-audio>=4.0.4",
 ]
 
 [dependency-groups]

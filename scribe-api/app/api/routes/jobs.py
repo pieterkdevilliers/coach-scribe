@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.config import settings
 from app.core.queue import get_pool
+from app.core.security import verify_api_key
 from app.schemas.jobs import JobResult, JobStatus
 from app.schemas.requests import HealthResponse
 
@@ -24,7 +25,11 @@ _ARQ_STATUS_MAP = {
 
 
 @router.get("/job/{job_id}", response_model=JobResult)
-async def get_job(job_id: str, pool: ArqRedis = Depends(get_pool)) -> JobResult:
+async def get_job(
+    job_id: str,
+    pool: ArqRedis = Depends(get_pool),
+    _: None = Depends(verify_api_key),
+) -> JobResult:
     """Return the current status and result of a queued job."""
     job = Job(job_id, pool)
 

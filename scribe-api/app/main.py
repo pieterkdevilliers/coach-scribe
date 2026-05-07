@@ -4,10 +4,13 @@ from contextlib import asynccontextmanager
 
 import logfire
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.api.routes import jobs, process
 from app.core.config import settings
 from app.core.queue import get_arq_pool
+from app.core.security import limiter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,6 +35,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 if settings.logfire_token:
     logfire.instrument_fastapi(app)

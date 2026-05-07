@@ -20,6 +20,7 @@ class TranscribeUrlRequest(BaseModel):
     s3_url: str
     language: str = "en"
     timestamps: bool = False
+    diarize: bool = True
 
 
 class ProcessUrlRequest(BaseModel):
@@ -28,6 +29,7 @@ class ProcessUrlRequest(BaseModel):
     s3_url: str
     prompt: str
     language: str = "en"
+    diarize: bool = True
 
 
 class HealthResponse(BaseModel):

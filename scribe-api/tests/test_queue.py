@@ -104,6 +104,23 @@ async def test_process_job_deletes_file_on_error(tmp_path):
     assert not fake_file.exists()
 
 
+async def test_transcribe_job_passes_diarize(tmp_path):
+    """diarize flag is forwarded to the transcription service."""
+    fake_file = tmp_path / "audio.wav"
+    fake_file.write_bytes(b"fake audio")
+
+    mock_svc = AsyncMock()
+    mock_svc.transcribe = AsyncMock(return_value="SPEAKER_00: hello")
+
+    with patch("app.services.transcription.transcription_service", mock_svc):
+        result = await transcribe_job({}, str(fake_file), "en", False, diarize=True)
+
+    assert result == {"transcript": "SPEAKER_00: hello"}
+    pos_args, kw_args = mock_svc.transcribe.call_args
+    # transcribe called as (path, language, timestamps, diarize) — positional
+    assert pos_args[3] is True
+
+
 async def test_transcribe_url_job_downloads_and_transcribes(tmp_path):
     """URL job downloads the file, transcribes it, and cleans up."""
     fake_file = tmp_path / "call.mp4"

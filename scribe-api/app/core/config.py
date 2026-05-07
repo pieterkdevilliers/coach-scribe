@@ -1,3 +1,4 @@
+"""Application settings loaded from environment variables."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,9 @@ class Settings(BaseSettings):
     max_file_size_mb: int = 500
     llm_timeout: int = 600
     job_timeout: int = 7200
+    api_key: str | None = None
+    rate_limit: str = "30/minute"
+    hf_token: str | None = None
     logfire_token: str | None = None
 
 

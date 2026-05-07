@@ -31,17 +31,19 @@ async def get_pool(request: Request) -> ArqRedis:
 # ---------------------------------------------------------------------------
 
 async def transcribe_job(
-    _ctx: dict, file_path: str, language: str, timestamps: bool
+    _ctx: dict, file_path: str, language: str, timestamps: bool, diarize: bool = False
 ) -> dict:
     """ARQ job: transcribe the file at file_path and delete it when done."""
     from app.services.transcription import transcription_service
 
     path = Path(file_path)
-    with logfire.span("transcribe_job", file=path.name, language=language):
+    with logfire.span(
+        "transcribe_job", file=path.name, language=language, diarize=diarize
+    ):
         try:
             logger.info("transcribe_job started: %s", path.name)
             transcript = await transcription_service.transcribe(
-                path, language, timestamps
+                path, language, timestamps, diarize
             )
             logger.info("transcribe_job complete: %s", path.name)
             return {"transcript": transcript}
@@ -60,16 +62,22 @@ async def extract_job(_ctx: dict, transcript: str, prompt: str) -> dict:
         return {"extraction": extraction}
 
 
-async def process_job(_ctx: dict, file_path: str, prompt: str, language: str) -> dict:
+async def process_job(
+    _ctx: dict, file_path: str, prompt: str, language: str, diarize: bool = False
+) -> dict:
     """ARQ job: transcribe a file then immediately run LLM extraction."""
     from app.services.extraction import extraction_service
     from app.services.transcription import transcription_service
 
     path = Path(file_path)
-    with logfire.span("process_job", file=path.name, language=language):
+    with logfire.span(
+        "process_job", file=path.name, language=language, diarize=diarize
+    ):
         try:
             logger.info("process_job transcribing: %s", path.name)
-            transcript = await transcription_service.transcribe(path, language)
+            transcript = await transcription_service.transcribe(
+                path, language, diarize=diarize
+            )
             logger.info("process_job extracting: %s", path.name)
             extraction = await extraction_service.extract(transcript, prompt)
             logger.info("process_job complete: %s", path.name)
@@ -79,18 +87,18 @@ async def process_job(_ctx: dict, file_path: str, prompt: str, language: str) ->
 
 
 async def transcribe_url_job(
-    _ctx: dict, url: str, language: str, timestamps: bool
+    _ctx: dict, url: str, language: str, timestamps: bool, diarize: bool = False
 ) -> dict:
     """ARQ job: download from URL, transcribe, and delete the temp file."""
     from app.core.temp_files import download_from_url
     from app.services.transcription import transcription_service
 
-    with logfire.span("transcribe_url_job", language=language):
+    with logfire.span("transcribe_url_job", language=language, diarize=diarize):
         path = await download_from_url(url)
         try:
             logger.info("transcribe_url_job started: %s", path.name)
             transcript = await transcription_service.transcribe(
-                path, language, timestamps
+                path, language, timestamps, diarize
             )
             logger.info("transcribe_url_job complete: %s", path.name)
             return {"transcript": transcript}
@@ -99,18 +107,20 @@ async def transcribe_url_job(
 
 
 async def process_url_job(
-    _ctx: dict, url: str, prompt: str, language: str
+    _ctx: dict, url: str, prompt: str, language: str, diarize: bool = False
 ) -> dict:
     """ARQ job: download from URL, transcribe, then run LLM extraction."""
     from app.core.temp_files import download_from_url
     from app.services.extraction import extraction_service
     from app.services.transcription import transcription_service
 
-    with logfire.span("process_url_job", language=language):
+    with logfire.span("process_url_job", language=language, diarize=diarize):
         path = await download_from_url(url)
         try:
             logger.info("process_url_job transcribing: %s", path.name)
-            transcript = await transcription_service.transcribe(path, language)
+            transcript = await transcription_service.transcribe(
+                path, language, diarize=diarize
+            )
             logger.info("process_url_job extracting: %s", path.name)
             extraction = await extraction_service.extract(transcript, prompt)
             logger.info("process_url_job complete: %s", path.name)
