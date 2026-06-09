@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     rate_limit: str = "30/minute"
     hf_token: str | None = None
     logfire_token: str | None = None
+    ghl_api_key: str | None = None
 
 
 settings = Settings()

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api.routes import jobs, process
+from app.api.routes import ghl, jobs, process
 from app.core.config import settings
 from app.core.queue import get_arq_pool
 from app.core.security import limiter
@@ -46,3 +46,4 @@ if settings.logfire_token:
 
 app.include_router(process.router)
 app.include_router(jobs.router)
+app.include_router(ghl.router, prefix="/ghl", tags=["ghl"])
